@@ -5,7 +5,8 @@
 #   Secrets:   GAME_REPO_TOKEN（SOURCE_REPO を読めるトークン）
 #              UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD（Pro ライセンスなら UNITY_SERIAL も）
 #
-# リポジトリが private の間は公開（deploy）を飛ばし、ビルド結果は成果物として残すだけにする。
+# リポジトリが private の間は公開（deploy）を飛ばし、ビルド結果は成果物（zip）として残すだけにする。
+# public の間は zip を作らない（public リポの成果物は誰でもダウンロードできるため）。
 
 name: Build WebGL
 
@@ -106,6 +107,7 @@ jobs:
           buildName: ${{ env.BUILD_NAME }}
 
       - name: Upload build
+        if: github.event.repository.private == true
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BUILD_NAME }}-WebGL
@@ -117,6 +119,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/WebGL/${{ env.BUILD_NAME }}
+          retention-days: 1
 
   deploy:
     needs: build
