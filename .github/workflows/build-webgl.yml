@@ -1,0 +1,131 @@
+# Unity プロジェクトを WebGL でビルドして GitHub Pages に公開する。
+#
+# 必要な設定
+#   Variables: SOURCE_REPO（ビルドする Unity プロジェクトのリポジトリ owner/name）
+#   Secrets:   GAME_REPO_TOKEN（SOURCE_REPO を読めるトークン）
+#              UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD（Pro ライセンスなら UNITY_SERIAL も）
+#
+# リポジトリが private の間は公開（deploy）を飛ばし、ビルド結果は成果物として残すだけにする。
+
+name: Build WebGL
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: ビルドするブランチ・タグ・コミット
+        default: main
+        required: true
+  repository_dispatch:
+    types: [source-updated]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 続けて更新されたときは、最新の1回だけビルドする
+concurrency:
+  group: webgl-build
+  cancel-in-progress: true
+
+env:
+  BUILD_NAME: TrashJudgement
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check settings
+        env:
+          SOURCE_REPO: ${{ vars.SOURCE_REPO }}
+          GAME_REPO_TOKEN: ${{ secrets.GAME_REPO_TOKEN }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          missing=()
+          [ -n "$SOURCE_REPO" ]     || missing+=("variable SOURCE_REPO")
+          [ -n "$GAME_REPO_TOKEN" ] || missing+=("secret GAME_REPO_TOKEN")
+          [ -n "$UNITY_LICENSE$UNITY_SERIAL" ] || missing+=("secret UNITY_LICENSE (or UNITY_SERIAL)")
+          [ -n "$UNITY_EMAIL" ]     || missing+=("secret UNITY_EMAIL")
+          [ -n "$UNITY_PASSWORD" ]  || missing+=("secret UNITY_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf '::error::Not set: %s\n' "${missing[@]}"
+            exit 1
+          fi
+
+      # Unity のイメージは大きいので、使わないツールを消して空きを作る
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          large-packages: false
+
+      - name: Checkout Unity project
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.SOURCE_REPO }}
+          ref: ${{ github.event.client_payload.sha || inputs.ref || 'main' }}
+          token: ${{ secrets.GAME_REPO_TOKEN }}
+          path: game
+          lfs: true
+
+      # GitHub Pages は Content-Encoding ヘッダを付けられないので、
+      # Gzip で圧縮し、解凍はブラウザ側のローダーに任せる
+      - name: Configure WebGL for GitHub Pages
+        run: |
+          settings=game/ProjectSettings/ProjectSettings.asset
+          sed -i -E \
+            -e 's/^( *webGLCompressionFormat:).*/\1 1/' \
+            -e 's/^( *webGLDecompressionFallback:).*/\1 1/' \
+            "$settings"
+          grep -q '^ *webGLCompressionFormat: 1$' "$settings"
+          grep -q '^ *webGLDecompressionFallback: 1$' "$settings"
+
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: game/Library
+          key: Library-WebGL-${{ hashFiles('game/Assets/**', 'game/Packages/**', 'game/ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+
+      - name: Build
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: game
+          targetPlatform: WebGL
+          buildName: ${{ env.BUILD_NAME }}
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_NAME }}-WebGL
+          path: build/WebGL/${{ env.BUILD_NAME }}
+          retention-days: 7
+
+      - name: Upload Pages artifact
+        if: github.event.repository.private == false
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/WebGL/${{ env.BUILD_NAME }}
+
+  deploy:
+    needs: build
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
