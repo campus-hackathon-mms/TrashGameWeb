@@ -8,7 +8,9 @@
 https://campus-hackathon-mms.github.io/TrashGameWeb/
 
 ブラウザでそのまま遊べます（スマートフォンの Safari / Chrome、PC のブラウザ）。
-音は画面に最初に触れてから鳴ります。
+スマートフォンは縦持ちがおすすめです。
+
+**遊び方・ルール・展示の方への案内は [説明書（MANUAL.md）](MANUAL.md) を見てください。**
 
 ## このリポジトリについて
 
