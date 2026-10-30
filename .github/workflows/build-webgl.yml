@@ -105,6 +105,10 @@ jobs:
           projectPath: game
           targetPlatform: WebGL
           buildName: ${{ env.BUILD_NAME }}
+          # 上の WebGL 設定の書き換えは意図したものなので、未コミットの変更があってもビルドする。
+          # バージョン番号は ProjectSettings の値をそのまま使う
+          versioning: None
+          allowDirtyBuild: true
 
       - name: Upload build
         if: github.event.repository.private == true
