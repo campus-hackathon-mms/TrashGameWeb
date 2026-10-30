@@ -217,5 +217,9 @@
 
 ---
 
-フォント：BIZ UDPゴシック（SIL Open Font License 1.1）
+使用フォント（どちらも [SIL Open Font License 1.1](https://openfontlicense.org)）
+
+* BIZ UDPゴシック：Copyright 2022 The BIZ UDGothic Project Authors (https://github.com/googlefonts/morisawa-biz-ud-mincho)
+* M PLUS 1：Copyright 2021 The M+ FONTS Project Authors (https://github.com/coz-m/MPLUS_FONTS)
+
 © TeamMMS

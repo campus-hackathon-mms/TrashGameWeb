@@ -15,6 +15,6 @@ https://campus-hackathon-mms.github.io/TrashGameWeb/
 ## このリポジトリについて
 
 ゲームの WebGL 版を公開するためのリポジトリです。
-[GitHub Actions](.github/workflows/build-webgl.yml) でビルドし、GitHub Pages に公開しています。
+`site` フォルダに置いたビルドを、[GitHub Actions](.github/workflows/deploy-pages.yml) で GitHub Pages に公開しています。
 
 © TeamMMS

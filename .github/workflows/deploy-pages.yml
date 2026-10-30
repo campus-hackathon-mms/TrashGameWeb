@@ -1,0 +1,54 @@
+# site フォルダに置いた WebGL ビルドを GitHub Pages に公開する。
+# ビルドは手元の Unity で行い、site フォルダごとコミットして main に push する。
+# リポジトリが private の間は公開できないので、何もせずに終わる。
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 公開の途中で次の公開を始めない（順番に公開する）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check build
+        run: |
+          if [ ! -f site/index.html ] || [ ! -d site/Build ]; then
+            echo "::error::site/index.html と site/Build がありません。WebGL のビルド結果を site フォルダに置いてください。"
+            exit 1
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+          retention-days: 1
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
